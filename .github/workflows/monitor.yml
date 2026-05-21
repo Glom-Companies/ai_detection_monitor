@@ -52,7 +52,8 @@ jobs:
           # Vérifie s'il y a des fichiers modifiés ou ajoutés à commiter
           if ! git diff --cached --quiet; then
             git commit -m "Archive automatique : nouvelles données et graphiques $(date +'%Y-%m-%d')"
-            git push
+            git pull --rebase origin main
+            git push origin main
           else
             echo "Aucune modification à commiter dans data/"
           fi
