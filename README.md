@@ -126,19 +126,19 @@ Le workflow défini dans `.github/workflows/monitor.yml` exécute le pipeline to
 ### Configuration des Secrets sur GitHub
 Pour activer l'envoi des mails et les résumés Gemini en production, allez dans votre dépôt sur GitHub : **Settings > Secrets and variables > Actions** et ajoutez les secrets suivants :
 
-*   `GEMINI_API_KEY` : Votre clé API générée dans Google AI Studio.
+*   `GEMINI_API_KEY` : Votre clé API générée dans [Google AI Studio](https://aistudio.google.com/).
 *   `SMTP_USER` : L'adresse e-mail émettrice (ex: Gmail).
 *   `SMTP_PASSWORD` : Le mot de passe d'application généré sur votre compte e-mail (ex: MDP d'application Google 16 caractères).
 
 ### Note sur les Quotas de la Clé API Gemini
 Si vous utilisez la clé API Gemini en **mode gratuit**, celle-ci est limitée à **15 requêtes par minute (RPM)**. Bien que notre code intègre une pause automatique de 4 secondes et des tentatives de réessai avec attente exponentielle pour contourner cette limite, il est possible que des serveurs surchargés (erreurs 503) forcent le script à utiliser le résumeur local pour certains articles.
 
-Pour garantir une synthèse 100 % fiable par Gemini sur tous les articles, il est recommandé d'associer un compte de facturation à votre projet dans Google AI Studio (**Pay-as-you-go**). Les tarifs de `gemini-2.5-flash` étant infimes (environ 0,075 $ pour 1 million de tokens), chaque run vous coûtera moins de **0,001 $**.
+Pour garantir une synthèse 100 % fiable par Gemini sur tous les articles, il est recommandé d'associer un compte de facturation à votre projet dans [Google AI Studio](https://aistudio.google.com/) (**Pay-as-you-go**). Les tarifs de `gemini-2.5-flash` étant infimes (environ 0,075 $ pour 1 million de tokens), chaque run vous coûtera moins de **0,001 $**.
 
 ---
 
 ## 📝 Licence & Auteurs
-Projet développé dans le cadre de la veille technologique pour le **LRSIA**.
+Projet développé dans le cadre de la veille technologique pour le [LRSIA](https://lrsia.ifri-uac.bj/).
 
-*   **Auteurs** : Équipe de recherche et veille LRSIA.
+*   **Auteurs** : Équipe de recherche et veille [LRSIA](https://lrsia.ifri-uac.bj/).
 *   **Version** : `1.0.0` (Release prête pour déploiement).
