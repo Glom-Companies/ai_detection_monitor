@@ -103,7 +103,7 @@ Pour que le script fonctionne pleinement, vous devez définir les variables d'en
 | `SMTP_PORT` | Port SMTP. | `587` |
 | `SMTP_USER` | Identifiant d'authentification SMTP. | `""` *(Requis pour l'envoi)* |
 | `SMTP_PASSWORD` | Mot de passe SMTP (mot de passe d'application). | `""` *(Requis pour l'envoi)* |
-| `EMAIL_TO` | Destinataires des e-mails (séparés par des virgules). | `stoniot005@gmail.com, adanlienclounonprecieux877@gmail.com` |
+| `EMAIL_TO` | Destinataires des e-mails (séparés par des virgules). | `destinataire1@mail.com, destinataire2@mail.com` |
 | `FROM_EMAIL` | Adresse e-mail de l'expéditeur. | Valeur de `SMTP_USER` |
 | `FROM_NAME` | Nom d'affichage de l'expéditeur. | `Veille Détection IA` |
 
