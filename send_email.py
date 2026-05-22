@@ -298,7 +298,8 @@ def send_digest_email(articles, cat_chart_path, kw_chart_path):
     
     # 1. Vérification de la configuration
     if not all([SMTP_USER, SMTP_PASSWORD, EMAIL_TO]):
-        logging.error("Configuration SMTP ou destinataires EMAIL_TO manquante. Envoi annulé.")
+        status_msg = f"SMTP_USER='{SMTP_USER or 'vide'}', SMTP_PASSWORD='{'détecté (***)' if SMTP_PASSWORD else 'vide'}', EMAIL_TO='{EMAIL_TO or 'vide'}'"
+        logging.error(f"Configuration SMTP ou destinataires EMAIL_TO manquante ({status_msg}). Envoi annulé.")
         logging.warning("--- APERÇU DE LA NEWSLETTER DANS LA CONSOLE ---")
         for idx, art in enumerate(articles[:5]):
             safe_print(f"[{idx+1}] [{art['interest_level']}] {art['title']}")

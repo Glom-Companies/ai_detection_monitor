@@ -23,6 +23,7 @@ def clean_html(raw_html):
 # --- GÉNÉRATEUR DE RÉSUMÉ AVEC GEMINI (REQUÊTE DIRECTE) ---
 def generate_gemini_summary(title, summary):
     if not GEMINI_API_KEY:
+        logging.warning("GEMINI_API_KEY est vide dans l'environnement. Utilisation du résumeur local.")
         return None
         
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
