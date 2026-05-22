@@ -162,13 +162,14 @@ ARXIV_QUERY = 'all:"AI text detection" OR all:"LLM watermarking" OR all:"machine
 # =====================================================================
 # CONFIGURATION EMAIL SMTP (Chargée depuis l'environnement)
 # =====================================================================
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("SMTP_USER", "")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-EMAIL_TO = os.environ.get("EMAIL_TO", "stoniot005@gmail.com, adanlienclounonprecieux877@gmail.com")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", SMTP_USER)
-FROM_NAME = os.environ.get("FROM_NAME", "Veille Détection IA")
+SMTP_HOST = os.environ.get("SMTP_HOST") or "smtp.gmail.com"
+SMTP_PORT_env = os.environ.get("SMTP_PORT")
+SMTP_PORT = int(SMTP_PORT_env) if SMTP_PORT_env and SMTP_PORT_env.isdigit() else 587
+SMTP_USER = os.environ.get("SMTP_USER") or ""
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD") or ""
+EMAIL_TO = os.environ.get("EMAIL_TO") or "stoniot005@gmail.com, adanlienclounonprecieux877@gmail.com"
+FROM_EMAIL = os.environ.get("FROM_EMAIL") or SMTP_USER
+FROM_NAME = os.environ.get("FROM_NAME") or "Veille Détection IA"
 
 # Clé API Gemini
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
