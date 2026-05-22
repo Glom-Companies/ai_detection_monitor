@@ -134,6 +134,8 @@ def analyze_article(article):
         
     # Sinon, utiliser le résumeur statistique local
     if not summary_fr:
+        if GEMINI_API_KEY:
+            logging.info(f"Utilisation du résumeur de repli local pour : '{title[:40]}...'")
         summary_fr = generate_local_summary(title, clean_summary)
         
     analyzed = article.copy()
