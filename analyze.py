@@ -26,7 +26,7 @@ def generate_gemini_summary(title, summary):
         logging.warning("GEMINI_API_KEY est vide dans l'environnement. Utilisation du résumeur local.")
         return None
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     
     prompt = (
         "Tu es un expert en veille technologique sur l'IA.\n"
