@@ -22,6 +22,7 @@ def clean_html(raw_html):
 
 # --- GÉNÉRATEUR DE RÉSUMÉ AVEC GEMINI (REQUÊTE DIRECTE) ---
 def generate_gemini_summary(title, summary):
+    import time
     if not GEMINI_API_KEY:
         logging.warning("GEMINI_API_KEY est vide dans l'environnement. Utilisation du résumeur local.")
         return None
@@ -50,21 +51,32 @@ def generate_gemini_summary(title, summary):
     
     headers = {"Content-Type": "application/json"}
     
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=12)
-        if response.status_code == 200:
-            data = response.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                if text_content:
-                    return text_content.strip()
-            logging.warning("Format de réponse Gemini inattendu.")
-        else:
-            logging.warning(f"L'appel à l'API Gemini a échoué (Status code: {response.status_code})")
-    except Exception as e:
-        logging.error(f"Erreur d'appel API Gemini : {e}")
-        
+    max_retries = 3
+    backoff = 4
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=12)
+            if response.status_code == 200:
+                data = response.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                    if text_content:
+                        return text_content.strip()
+                logging.warning("Format de réponse Gemini inattendu.")
+                break
+            elif response.status_code == 429:
+                logging.warning(f"Rate limit Gemini atteint (429). Tentative {attempt+1}/{max_retries}. Attente de {backoff}s...")
+                time.sleep(backoff)
+                backoff *= 2
+            else:
+                logging.warning(f"L'appel à l'API Gemini a échoué (Status code: {response.status_code})")
+                break
+        except Exception as e:
+            logging.error(f"Erreur d'appel API Gemini (tentative {attempt+1}) : {e}")
+            time.sleep(backoff)
+            backoff *= 2
+            
     return None
 
 # --- GÉNÉRATEUR DE RÉSUMÉ DE REPLI (FALLBACK LOCAL STATISTIQUE) ---
@@ -108,6 +120,7 @@ def generate_local_summary(title, summary):
 
 # --- POINT D'ENTRÉE ANALYSE ---
 def analyze_article(article):
+    import time
     title = clean_html(article.get("title", ""))
     raw_summary = article.get("summary", "")
     clean_summary = clean_html(raw_summary)
@@ -115,6 +128,10 @@ def analyze_article(article):
     # Essayer le résumé intelligent par l'API Gemini
     summary_fr = generate_gemini_summary(title, clean_summary)
     
+    # Si on utilise Gemini, on met un petit délai de 4 secondes pour respecter le rate limit de 15 RPM
+    if GEMINI_API_KEY and summary_fr:
+        time.sleep(4)
+        
     # Sinon, utiliser le résumeur statistique local
     if not summary_fr:
         summary_fr = generate_local_summary(title, clean_summary)
