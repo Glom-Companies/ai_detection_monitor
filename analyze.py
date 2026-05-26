@@ -2,7 +2,8 @@ import re
 import requests
 import os
 import logging
-from config import KEYWORDS, GEMINI_API_KEY
+from config import KEYWORDS, GEMINI_API_KEY, KNOWN_TOOLS
+import json
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +21,16 @@ def clean_html(raw_html):
     clean_text = re.sub(r"\s+", " ", clean_text)
     return clean_text.strip()
 
-# --- GÉNÉRATEUR DE RÉSUMÉ AVEC GEMINI (REQUÊTE DIRECTE) ---
+def clean_json_string(text):
+    """Nettoie le texte renvoyé par l'IA pour s'assurer qu'il s'agit d'un JSON valide."""
+    if not text:
+        return ""
+    text = re.sub(r"^```json\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^```\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s*```$", "", text, flags=re.IGNORECASE)
+    return text.strip()
+
+# --- GÉNÉRATEUR DE RÉSUMÉ AVEC GEMINI (REQUÊTE DIRECTE - SORTIE JSON) ---
 def generate_gemini_summary(title, summary):
     import time
     if not GEMINI_API_KEY:
@@ -30,13 +40,25 @@ def generate_gemini_summary(title, summary):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     
     prompt = (
-        "Tu es un expert en veille technologique sur l'IA.\n"
-        "Rédige un résumé très court (2 à 3 phrases maximum), neutre, clair et entièrement en français "
-        "de l'actualité suivante en te basant sur son titre et sa description.\n"
-        "Mets en valeur l'aspect lié à la détection de texte IA, au watermarking ou aux faux positifs s'ils sont mentionnés.\n\n"
+        "Tu es un expert en veille technologique sur l'IA et la détection de texte.\n"
+        "Analyse l'article suivant (titre et description/contenu) et extrait les informations de manière très structurée sous forme d'un objet JSON.\n\n"
         f"Titre : {title}\n"
-        f"Description : {summary}\n\n"
-        "Résumé (en français) :"
+        f"Contenu : {summary}\n\n"
+        "Le JSON doit STRICTEMENT suivre ce schéma et n'avoir AUCUN texte en dehors du JSON :\n"
+        "{\n"
+        "  \"is_tool\": true, // booléen: true si l'article parle d'un outil/plateforme/logiciel de détection d'IA spécifique, ou d'une mise à jour de performance/benchmark de cet outil. false sinon.\n"
+        "  \"tool_name\": \"Nom de l'outil\", // chaîne: nom de l'outil (ex: GPTZero, Turnitin, Pangram Labs...) ou \"N/A\" si non applicable.\n"
+        "  \"update_title_en\": \"Short title of the update in English\", // max 80 chars\n"
+        "  \"update_title_fr\": \"Titre court de la nouveauté en français\", // max 80 chars\n"
+        "  \"description_en\": \"Brief English description of the update/tool (1-2 sentences)\",\n"
+        "  \"description_fr\": \"Brève description de la nouveauté/outil en français (1-2 phrases)\",\n"
+        "  \"performance_en\": \"English performance metrics/benchmarks mentioned in the text (e.g. accuracy, false positives). If none, put 'N/A'\",\n"
+        "  \"performance_fr\": \"Métriques de performance/benchmarks en français mentionnés (ex: taux de précision, faux positifs). Si aucun, mettre 'N/A'\",\n"
+        "  \"pricing_en\": \"Pricing model in English (e.g. Free, Freemium, Paid). If none, put 'N/A'\",\n"
+        "  \"pricing_fr\": \"Modèle de tarification en français (ex: Gratuit, Freemium, Payant). Si aucun, mettre 'N/A'\",\n"
+        "  \"try_link\": \"URL mentioned in the text for trying the tool. If none, put 'N/A'\"\n"
+        "}\n\n"
+        "Important : Ne génère rien d'autre que du JSON valide."
     )
     
     payload = {
@@ -44,8 +66,9 @@ def generate_gemini_summary(title, summary):
             "parts": [{"text": prompt}]
         }],
         "generationConfig": {
-            "temperature": 0.2,
-            "maxOutputTokens": 180
+            "responseMimeType": "application/json",
+            "temperature": 0.1,
+            "maxOutputTokens": 450
         }
     }
     
@@ -55,14 +78,19 @@ def generate_gemini_summary(title, summary):
     backoff = 4
     for attempt in range(max_retries):
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=12)
+            response = requests.post(url, json=payload, headers=headers, timeout=15)
             if response.status_code == 200:
                 data = response.json()
                 candidates = data.get("candidates", [])
                 if candidates:
                     text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
                     if text_content:
-                        return text_content.strip()
+                        clean_text = clean_json_string(text_content)
+                        try:
+                            parsed_json = json.loads(clean_text)
+                            return parsed_json
+                        except json.JSONDecodeError as je:
+                            logging.error(f"Erreur de décodage JSON de la réponse Gemini : {je}. Texte brut : {clean_text}")
                 logging.warning("Format de réponse Gemini inattendu.")
                 break
             elif response.status_code == 429:
@@ -79,44 +107,75 @@ def generate_gemini_summary(title, summary):
             
     return None
 
-# --- GÉNÉRATEUR DE RÉSUMÉ DE REPLI (FALLBACK LOCAL STATISTIQUE) ---
+# --- GÉNÉRATEUR DE RÉSUMÉ DE REPLI (FALLBACK LOCAL STATISTIQUE AVEC DB) ---
 def generate_local_summary(title, summary):
+    """
+    Fallback local statistique si Gemini échoue.
+    Recherche si un outil connu est cité dans le texte.
+    """
     text = f"{title}. {summary}"
-    # Extraction des phrases
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+    text_lower = text.lower()
     
-    # Mise à plat de tous les mots-clés du dictionnaire
-    all_kws = [kw.lower() for sublist in KEYWORDS.values() for kw in sublist]
-    
-    scored_sentences = []
-    for sentence in sentences:
-        clean_sentence = sentence.strip()
-        if not clean_sentence or len(clean_sentence) < 15:
-            continue
+    matched_tool_key = None
+    for key in KNOWN_TOOLS.keys():
+        if re.search(r'\b' + re.escape(key) + r'\b', text_lower):
+            matched_tool_key = key
+            break
             
-        # Comptage des occurrences de mots-clés
-        score = 0
-        for kw in all_kws:
-            if kw in clean_sentence.lower():
-                score += 1
+    if not matched_tool_key:
+        for key in KNOWN_TOOLS.keys():
+            if key in text_lower:
+                matched_tool_key = key
+                break
                 
-        scored_sentences.append((clean_sentence, score))
+    if matched_tool_key:
+        tool = KNOWN_TOOLS[matched_tool_key]
+        return {
+            "is_tool": True,
+            "tool_name": tool["name"],
+            "update_title_en": f"Update: {title}",
+            "update_title_fr": f"Mise à jour : {title}",
+            "description_en": summary[:200] + ("..." if len(summary) > 200 else ""),
+            "description_fr": summary[:200] + ("..." if len(summary) > 200 else ""),
+            "performance_en": tool["benchmarks_en"],
+            "performance_fr": tool["benchmarks_fr"],
+            "pricing_en": tool["pricing_en"],
+            "pricing_fr": tool["pricing_fr"],
+            "try_link": tool["url"]
+        }
         
-    # Tri par score décroissant
-    scored_sentences.sort(key=lambda x: x[1], reverse=True)
+    is_about_detection = any(kw in text_lower for kw in ["detector", "detect", "plagiarism", "watermark", "authenticity"])
     
-    # Récupérer les 2 meilleures phrases ayant au moins 1 mot-clé
-    selected = [s[0] for s in scored_sentences[:2] if s[1] > 0]
-    
-    if not selected:
-        # Fallback si aucune phrase ne contient de mot-clé : on prend les deux premières phrases lisibles
-        selected = [s[0] for s in scored_sentences[:2]]
+    if is_about_detection:
+        words = title.split()
+        guessed_name = words[0] if words else "Unknown Tool"
+        return {
+            "is_tool": True,
+            "tool_name": guessed_name,
+            "update_title_en": title,
+            "update_title_fr": title,
+            "description_en": summary[:200] + ("..." if len(summary) > 200 else ""),
+            "description_fr": summary[:200] + ("..." if len(summary) > 200 else ""),
+            "performance_en": "N/A",
+            "performance_fr": "N/A",
+            "pricing_en": "N/A",
+            "pricing_fr": "N/A",
+            "try_link": "N/A"
+        }
         
-    if not selected:
-        # Fallback ultime
-        return f"{title} - {summary[:150]}..."
-        
-    return " ".join(selected)
+    return {
+        "is_tool": False,
+        "tool_name": "N/A",
+        "update_title_en": title,
+        "update_title_fr": title,
+        "description_en": summary[:200] + ("..." if len(summary) > 200 else ""),
+        "description_fr": summary[:200] + ("..." if len(summary) > 200 else ""),
+        "performance_en": "N/A",
+        "performance_fr": "N/A",
+        "pricing_en": "N/A",
+        "pricing_fr": "N/A",
+        "try_link": "N/A"
+    }
 
 # --- POINT D'ENTRÉE ANALYSE ---
 def analyze_article(article):
@@ -125,24 +184,70 @@ def analyze_article(article):
     raw_summary = article.get("summary", "")
     clean_summary = clean_html(raw_summary)
     
-    # Essayer le résumé intelligent par l'API Gemini
-    summary_fr = generate_gemini_summary(title, clean_summary)
-    
-    # Si on utilise Gemini, on met un petit délai de 4 secondes pour respecter le rate limit de 15 RPM
-    if GEMINI_API_KEY and summary_fr:
+    analysis = None
+    if GEMINI_API_KEY:
+        analysis = generate_gemini_summary(title, clean_summary)
+        # Respect rate limits
         time.sleep(4)
         
-    # Sinon, utiliser le résumeur statistique local
-    if not summary_fr:
+    if not analysis:
         if GEMINI_API_KEY:
             logging.info(f"Utilisation du résumeur de repli local pour : '{title[:40]}...'")
-        summary_fr = generate_local_summary(title, clean_summary)
+        analysis = generate_local_summary(title, clean_summary)
         
     analyzed = article.copy()
     analyzed["title"] = title
     analyzed["summary"] = clean_summary
-    # Ajout du résumé narratif final
-    analyzed["narrative_summary"] = summary_fr
+    
+    for k, v in analysis.items():
+        analyzed[k] = v
+        
+    # Enrichissement avec KNOWN_TOOLS
+    if analyzed.get("is_tool"):
+        tool_name = analyzed.get("tool_name", "").strip()
+        tool_key = tool_name.lower()
+        
+        matched_key = None
+        for key in KNOWN_TOOLS.keys():
+            if key == tool_key or key in tool_key or tool_key in key:
+                matched_key = key
+                break
+                
+        if matched_key:
+            ref_tool = KNOWN_TOOLS[matched_key]
+            if not analyzed.get("try_link") or analyzed["try_link"] == "N/A" or not analyzed["try_link"].startswith("http"):
+                analyzed["try_link"] = ref_tool["url"]
+                
+            if not analyzed.get("pricing_en") or analyzed["pricing_en"] == "N/A":
+                analyzed["pricing_en"] = ref_tool["pricing_en"]
+            if not analyzed.get("pricing_fr") or analyzed["pricing_fr"] == "N/A":
+                analyzed["pricing_fr"] = ref_tool["pricing_fr"]
+                
+            if not analyzed.get("performance_en") or analyzed["performance_en"] == "N/A":
+                analyzed["performance_en"] = ref_tool["benchmarks_en"]
+            if not analyzed.get("performance_fr") or analyzed["performance_fr"] == "N/A":
+                analyzed["performance_fr"] = ref_tool["benchmarks_fr"]
+                
+            analyzed["tool_name"] = ref_tool["name"]
+            analyzed["is_new_tool"] = False
+        else:
+            # Nouvel outil détecté
+            analyzed["is_new_tool"] = True
+            if not analyzed.get("try_link") or analyzed["try_link"] == "N/A" or not analyzed["try_link"].startswith("http"):
+                analyzed["try_link"] = article.get("link", "N/A")
+            if not analyzed.get("pricing_en") or analyzed["pricing_en"] == "N/A":
+                analyzed["pricing_en"] = "N/A"
+            if not analyzed.get("pricing_fr") or analyzed["pricing_fr"] == "N/A":
+                analyzed["pricing_fr"] = "N/A"
+            if not analyzed.get("performance_en") or analyzed["performance_en"] == "N/A":
+                analyzed["performance_en"] = "N/A"
+            if not analyzed.get("performance_fr") or analyzed["performance_fr"] == "N/A":
+                analyzed["performance_fr"] = "N/A"
+    else:
+        analyzed["is_new_tool"] = False
+        
+    # Compatibilité avec le script original (pour ne pas casser d'autres parties)
+    analyzed["narrative_summary"] = analyzed.get("description_fr", clean_summary[:200])
     
     return analyzed
 

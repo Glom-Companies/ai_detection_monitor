@@ -160,6 +160,112 @@ REDDIT_SUBREDDITS = [
 ARXIV_QUERY = 'all:"AI text detection" OR all:"LLM watermarking" OR all:"machine generated text"'
 
 # =====================================================================
+# BASE DE DONNÉES DE RÉFÉRENCE DES OUTILS DE DÉTECTION D'IA
+# =====================================================================
+KNOWN_TOOLS = {
+    "gptzero": {
+        "name": "GPTZero",
+        "url": "https://gptzero.me",
+        "pricing_en": "Freemium (10k words/mo; Premium from $10-20/mo)",
+        "pricing_fr": "Freemium (10k mots/mois ; Premium à partir de 10-20 $/mois)",
+        "access_en": "Web App, API, LMS Integration, Chrome Extension",
+        "access_fr": "Web App, API, Intégration LMS, Extension Chrome",
+        "benchmarks_en": "99.3% accuracy, 0.24% FPR. Highly robust on GPT-5 (100%) and o3 (96.3%). Includes Writing Replay.",
+        "benchmarks_fr": "Précision de 99,3 %, 0,24 % de faux positifs. Très robuste sur GPT-5 (100 %) et o3 (96,3 %). Inclut l'historique d'écriture.",
+    },
+    "pangram labs": {
+        "name": "Pangram Labs",
+        "url": "https://pangram.com",
+        "pricing_en": "5 free credits/day; Pro from $20/mo; API at $0.05/request",
+        "pricing_fr": "5 crédits gratuits/jour ; Pro à partir de 20 $/mois ; API à 0,05 $/requête",
+        "access_en": "Web App, API, Enterprise Integration",
+        "access_fr": "Web App, API, Intégration entreprise",
+        "benchmarks_en": "99.8% accuracy, 0.004% FPR (highest protection). Detects AI assistance and identifies source model.",
+        "benchmarks_fr": "Précision de 99,8 %, 0,004 % de faux positifs (sécurité maximale). Détecte l'assistance et identifie le modèle source.",
+    },
+    "turnitin": {
+        "name": "Turnitin",
+        "url": "https://turnitin.com",
+        "pricing_en": "Custom institutional pricing",
+        "pricing_fr": "Sur devis institutionnel uniquement",
+        "access_en": "LMS Integration (Canvas, Blackboard, Moodle)",
+        "access_fr": "Intégration native LMS (Canvas, Blackboard, Moodle)",
+        "benchmarks_en": "82.5% - 92.0% accuracy, 0.51% - 1.28% FPR. Conservative approach favoring human authors.",
+        "benchmarks_fr": "Précision de 82,5 % - 92,0 %, 0,51 % - 1,28 % de faux positifs. Approche prudente protégeant les auteurs.",
+    },
+    "copyleaks": {
+        "name": "Copyleaks",
+        "url": "https://copyleaks.com",
+        "pricing_en": "Personal from $13.99/mo; Pro from $74.99/mo",
+        "pricing_fr": "Personnel à partir de 13,99 $/mois ; Pro à partir de 74,99 $/mois",
+        "access_en": "Web App, API, LMS Integration, Chrome Extension",
+        "access_fr": "Web App, API, Intégration LMS, Extension Chrome",
+        "benchmarks_en": "90.7% - 94.0% accuracy, 4.0% - 5.26% FPR. Strong in code and multilingual detection.",
+        "benchmarks_fr": "Précision de 90,7 % - 94,0 %, 4,0 % - 5,26 % de faux positifs. Fort en multilingue et détection de code.",
+    },
+    "originality.ai": {
+        "name": "Originality.ai",
+        "url": "https://originality.ai",
+        "pricing_en": "Pay-as-you-go from $30 (3k credits); Pro from $14.95/mo",
+        "pricing_fr": "À la demande dès 30 $ (3k crédits) ; Pro dès 14,95 $/mois",
+        "access_en": "Web App, API, Chrome Extension, WordPress Plugin",
+        "access_fr": "Web App, API, Extension Chrome, Plugin WordPress",
+        "benchmarks_en": "83% accuracy (drops to 31% on GPT-5, 7.6% on o3). High FPR (4.79% - 5.7%). High detection of humanized content.",
+        "benchmarks_fr": "Précision de 83 % (chute à 31 % sur GPT-5, 7,6 % sur o3). FPR élevé (4,79 % - 5,7 %). Très fort contre le texte humanisé.",
+    },
+    "compilatio": {
+        "name": "Compilatio",
+        "url": "https://compilatio.net",
+        "pricing_en": "Institutional subscription quote (Magister, Studium)",
+        "pricing_fr": "Sur devis institutionnel (Magister, Studium)",
+        "access_en": "Web App, LMS Integration",
+        "access_fr": "Web App, Intégration LMS",
+        "benchmarks_en": "94.0% - 99.0% accuracy, <1.0% FPR. Multilingual (24 languages) with granular highlight of suspect segments.",
+        "benchmarks_fr": "Précision de 94,0 % - 99,0 %, faux positifs < 1,0 %. Multilingue (24 langues) avec surlignage granulaire des passages suspectés.",
+    },
+    "hive moderation": {
+        "name": "Hive Moderation",
+        "url": "https://hivemoderation.com",
+        "pricing_en": "Pay-per-use API; Enterprise custom pricing",
+        "pricing_fr": "API facturée à l'usage ; Formules Enterprise sur devis",
+        "access_en": "REST API, Enterprise Dashboard",
+        "access_fr": "API REST, Console Enterprise",
+        "benchmarks_en": "Multimodal (Text, Audio, Video, Image, CSAM). Vulnerable to controlnet/inpainting.",
+        "benchmarks_fr": "Multimodal (Texte, Audio, Vidéo, Image, CSAM). Vulnérable aux retouches avancées d'images (ControlNet).",
+    },
+    "winston ai": {
+        "name": "Winston AI",
+        "url": "https://gowinston.ai",
+        "pricing_en": "From $18/mo for 80k words",
+        "pricing_fr": "À partir de 18 $/mois pour 80k mots",
+        "access_en": "Web App, Chrome Extension",
+        "access_fr": "Web App, Extension navigateur",
+        "benchmarks_en": "High publisher claimed accuracy (~99.98%). Features OCR extraction from images.",
+        "benchmarks_fr": "Haute précision revendiquée par l'éditeur (~99,98 %). Intègre l'extraction OCR depuis les images.",
+    },
+    "zerogpt": {
+        "name": "ZeroGPT",
+        "url": "https://zerogpt.com",
+        "pricing_en": "Free base tier; Premium subscription available",
+        "pricing_fr": "Gratuit de base ; Abonnements Premium disponibles",
+        "access_en": "Web App, API",
+        "access_fr": "Web App, API",
+        "benchmarks_en": "70.0% - 73.75% accuracy. Very high False Positive Rate (20.51% - 33.0%). Not recommended for academic use.",
+        "benchmarks_fr": "Précision de 70,0 % - 73,75 %. Taux de faux positifs critique (20,51 % - 33,0 %). Fortement déconseillé pour l'académique.",
+    },
+    "undetectable ai": {
+        "name": "Undetectable AI",
+        "url": "https://undetectable.ai",
+        "pricing_en": "From $19/mo",
+        "pricing_fr": "À partir de 19 $/mois",
+        "access_en": "Web App",
+        "access_fr": "Web App",
+        "benchmarks_en": "Hybrid tool (detector + aggressive humanizer). Detection accuracy is around 85% - 90% (without FPR).",
+        "benchmarks_fr": "Outil hybride (détecteur + humaniseur agressif). Précision en détection pure d'environ 85 % - 90 %.",
+    }
+}
+
+# =====================================================================
 # CONFIGURATION EMAIL SMTP (Chargée depuis l'environnement)
 # =====================================================================
 SMTP_HOST = os.environ.get("SMTP_HOST") or "smtp.gmail.com"

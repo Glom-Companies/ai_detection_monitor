@@ -92,11 +92,15 @@ def main():
     # 4. ANALYSE ET RÉSUMÉS (STATISTIQUE OU GEMINI AI)
     try:
         logging.info("Démarrage de l'analyse et de la synthèse des textes...")
-        analyzed_articles = []
+        raw_analyzed = []
         for idx, art in enumerate(filtered_articles):
             logging.info(f"Analyse article {idx+1}/{len(filtered_articles)} : {art.get('title')[:40]}...")
-            analyzed_articles.append(analyze_article(art))
+            raw_analyzed.append(analyze_article(art))
             
+        # Filtrage strict post-analyse : on ne garde que les articles identifiés comme outils/plateformes
+        analyzed_articles = [art for art in raw_analyzed if art.get("is_tool")]
+        logging.info(f"Filtrage sémantique : {len(analyzed_articles)}/{len(raw_analyzed)} articles qualifiés comme outils de détection.")
+        
         save_to_csv(analyzed_articles, analyzed_csv)
     except Exception as e:
         logging.critical(f"Erreur fatale lors de l'analyse : {e}")
