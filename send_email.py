@@ -201,7 +201,7 @@ def build_html_body(articles, date_str):
             border-radius: 4px;
             text-transform: uppercase;
         }}
-        .badge-new {
+        .badge-new {{
             font-size: 11px;
             font-weight: 700;
             color: #ffffff;
@@ -209,7 +209,7 @@ def build_html_body(articles, date_str):
             padding: 3px 8px;
             border-radius: 4px;
             text-transform: uppercase;
-        }
+        }}
         .source-badge {{
             font-size: 11px;
             font-weight: 500;
